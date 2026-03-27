@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>แผนที่อุบัติเหตุยานยนต์ | สพฉ.</title>
-    <meta name="description" content="แผนที่แสดงข้อมูลอุบัติเหตุยานยนต์ทั่วประเทศไทย ข้อมูล 30 ธ.ค. 68 ถึง 5 ม.ค. 69 โดยสถาบันการแพทย์ฉุกเฉินแห่งชาติ">
+    <meta name="description"
+        content="แผนที่แสดงข้อมูลอุบัติเหตุยานยนต์ทั่วประเทศไทย ข้อมูล 30 ธ.ค. 68 ถึง 5 ม.ค. 69 โดยสถาบันการแพทย์ฉุกเฉินแห่งชาติ">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -16,108 +18,573 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <style>
-        *,*::before,*::after{box-sizing:border-box}
-        body,html{margin:0;padding:0;height:100%;background:#f1f5f9;color:#334155;font-family:'Prompt',sans-serif;overflow:hidden}
-        #map{height:100vh;width:100%;z-index:1}
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box
+        }
 
-        .header{position:absolute;top:14px;left:14px;z-index:1000;background:rgba(255,255,255,0.96);padding:12px 18px;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,0.07);backdrop-filter:blur(10px);display:flex;align-items:center;gap:12px;border-left:4px solid #1e3a5f;max-width:380px}
-        .header-icon{width:40px;height:40px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;flex-shrink:0}
-        .header h1{margin:0;font-size:0.95rem;color:#1e293b;font-weight:600}
-        .header p{margin:2px 0 0;font-size:0.68rem;color:#64748b;font-weight:300}
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #f1f5f9;
+            color: #334155;
+            font-family: 'Prompt', sans-serif;
+            overflow: hidden
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+            z-index: 1
+        }
+
+        .header {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 12px 18px;
+            border-radius: 14px;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid #1e3a5f;
+            max-width: 380px
+        }
+
+        .header-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            flex-shrink: 0
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #1e293b;
+            font-weight: 600
+        }
+
+        .header p {
+            margin: 2px 0 0;
+            font-size: 0.68rem;
+            color: #64748b;
+            font-weight: 300
+        }
 
         /* Left panel - location info */
-        .left-panel{position:absolute;top:140px;left:14px;z-index:1000;width:280px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 160px);overflow-y:auto}
-        .left-panel::-webkit-scrollbar{width:4px}
-        .left-panel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+        .left-panel {
+            position: absolute;
+            top: 140px;
+            left: 14px;
+            z-index: 1000;
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto
+        }
+
+        .left-panel::-webkit-scrollbar {
+            width: 4px
+        }
+
+        .left-panel::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px
+        }
 
         /* Right panel */
-        .right-panel{position:absolute;top:14px;right:14px;z-index:1000;width:280px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 80px);overflow-y:auto}
-        .right-panel::-webkit-scrollbar{width:4px}
-        .right-panel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+        .right-panel {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 1000;
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto
+        }
 
-        .card{background:rgba(255,255,255,0.98);padding:14px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.06);border:1px solid #e2e8f0}
-        .card-title{font-weight:700;color:#1e293b;font-size:0.82rem;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-        .card-title i{color:#2563eb;font-size:0.8rem}
+        .right-panel::-webkit-scrollbar {
+            width: 4px
+        }
 
-        .filter-btn{display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;padding:7px 10px;cursor:pointer;transition:all 0.2s;user-select:none;margin-bottom:5px}
-        .filter-btn:last-child{margin-bottom:0}
-        .filter-btn:hover{border-color:#cbd5e1}
-        .btn-content{display:flex;align-items:center;gap:7px}
-        .btn-dot{width:14px;height:14px;border-radius:50%}
-        .btn-label{font-size:0.78rem;color:#475569}
-        .btn-count{font-size:0.72rem;font-weight:700;color:#64748b}
-        .filter-btn.active.injured{background:#fef2f2;border-color:#fca5a5}
-        .filter-btn.active.injured .btn-dot{background:#ef4444;box-shadow:0 0 5px rgba(239,68,68,0.3)}
-        .filter-btn.active.injured .btn-label{color:#b91c1c;font-weight:600}
-        .filter-btn.active.injured .btn-count{color:#b91c1c}
-        .filter-btn.active.dead{background:#f1f5f9;border-color:#94a3b8}
-        .filter-btn.active.dead .btn-dot{background:#1e1e1e;border:2px solid #aaa}
-        .filter-btn.active.dead .btn-label{color:#1e293b;font-weight:600}
-        .filter-btn.active.dead .btn-count{color:#1e293b}
-        .filter-total{text-align:center;margin-top:6px;font-size:0.72rem;color:#94a3b8}
-        .filter-total span{font-weight:700;color:#1e293b;font-size:0.9rem}
+        .right-panel::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 14px;
+            border-radius: 14px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e2e8f0
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 0.82rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .card-title i {
+            color: #2563eb;
+            font-size: 0.8rem
+        }
+
+        .filter-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 7px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            margin-bottom: 5px
+        }
+
+        .filter-btn:last-child {
+            margin-bottom: 0
+        }
+
+        .filter-btn:hover {
+            border-color: #cbd5e1
+        }
+
+        .btn-content {
+            display: flex;
+            align-items: center;
+            gap: 7px
+        }
+
+        .btn-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%
+        }
+
+        .btn-label {
+            font-size: 0.78rem;
+            color: #475569
+        }
+
+        .btn-count {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b
+        }
+
+        .filter-btn.active.injured {
+            background: #fef2f2;
+            border-color: #fca5a5
+        }
+
+        .filter-btn.active.injured .btn-dot {
+            background: #ef4444;
+            box-shadow: 0 0 5px rgba(239, 68, 68, 0.3)
+        }
+
+        .filter-btn.active.injured .btn-label {
+            color: #b91c1c;
+            font-weight: 600
+        }
+
+        .filter-btn.active.injured .btn-count {
+            color: #b91c1c
+        }
+
+        .filter-btn.active.dead {
+            background: #f1f5f9;
+            border-color: #94a3b8
+        }
+
+        .filter-btn.active.dead .btn-dot {
+            background: #1e1e1e;
+            border: 2px solid #aaa
+        }
+
+        .filter-btn.active.dead .btn-label {
+            color: #1e293b;
+            font-weight: 600
+        }
+
+        .filter-btn.active.dead .btn-count {
+            color: #1e293b
+        }
+
+        .filter-total {
+            text-align: center;
+            margin-top: 6px;
+            font-size: 0.72rem;
+            color: #94a3b8
+        }
+
+        .filter-total span {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 0.9rem
+        }
 
         /* Top 10 */
-        .top-header{display:flex;align-items:center;gap:8px;padding:4px 4px;font-size:0.6rem;color:#94a3b8;font-weight:600;border-bottom:2px solid #e2e8f0;margin-bottom:2px}
-        .top-header .th-rank{width:20px;text-align:center;flex-shrink:0}
-        .top-header .th-name{flex:1}
-        .top-header .th-stat{width:38px;text-align:center}
-        .top-item{display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;font-size:0.72rem;cursor:pointer;transition:background 0.15s;border-radius:4px;padding:4px 4px}
-        .top-item:hover{background:#f8fafc}
-        .top-item:last-child{border-bottom:none}
-        .top-rank{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.6rem;color:white;flex-shrink:0}
-        .rank-1{background:#f59e0b}
-        .rank-2{background:#94a3b8}
-        .rank-3{background:#b45309}
-        .rank-other{background:#cbd5e1;color:#64748b}
-        .top-name{flex:1;color:#334155;font-weight:500;line-height:1.2}
-        .top-stat{width:38px;text-align:center;font-weight:700;font-size:0.7rem}
-        .top-stat.total{color:#1e293b}
-        .top-stat.inj{color:#ef4444}
-        .top-stat.dead{color:#475569}
+        .top-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 4px;
+            font-size: 0.6rem;
+            color: #94a3b8;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 2px
+        }
+
+        .top-header .th-rank {
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0
+        }
+
+        .top-header .th-name {
+            flex: 1
+        }
+
+        .top-header .th-stat {
+            width: 38px;
+            text-align: center
+        }
+
+        .top-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-radius: 4px;
+            padding: 4px 4px
+        }
+
+        .top-item:hover {
+            background: #f8fafc
+        }
+
+        .top-item:last-child {
+            border-bottom: none
+        }
+
+        .top-rank {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.6rem;
+            color: white;
+            flex-shrink: 0
+        }
+
+        .rank-1 {
+            background: #f59e0b
+        }
+
+        .rank-2 {
+            background: #94a3b8
+        }
+
+        .rank-3 {
+            background: #b45309
+        }
+
+        .rank-other {
+            background: #cbd5e1;
+            color: #64748b
+        }
+
+        .top-name {
+            flex: 1;
+            color: #334155;
+            font-weight: 500;
+            line-height: 1.2
+        }
+
+        .top-stat {
+            width: 38px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.7rem
+        }
+
+        .top-stat.total {
+            color: #1e293b
+        }
+
+        .top-stat.inj {
+            color: #ef4444
+        }
+
+        .top-stat.dead {
+            color: #475569
+        }
 
         /* Popup */
-        .leaflet-popup-content-wrapper{background:rgba(255,255,255,0.98)!important;color:#334155!important;border-radius:14px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important;border:1px solid #e2e8f0!important}
-        .leaflet-popup-tip{background:white!important}
-        .leaflet-popup-content{font-family:'Prompt'!important;margin:12px 14px!important;min-width:220px}
-        .popup-head{display:flex;align-items:center;gap:7px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #e2e8f0}
-        .popup-icon{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;flex-shrink:0}
-        .popup-icon.injured{background:#ef4444}
-        .popup-icon.dead{background:#1e1e1e}
-        .popup-title{font-size:0.85rem;font-weight:600}
-        .popup-title.injured{color:#dc2626}
-        .popup-title.dead{color:#1e293b}
-        .pr{display:flex;justify-content:space-between;margin-bottom:2px;font-size:0.72rem;gap:8px}
-        .pl{color:#94a3b8;white-space:nowrap}
-        .pv{color:#1e293b;font-weight:500;text-align:right;max-width:140px;word-break:break-word}
-        .popup-section{margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0}
-        .ps-title{font-size:0.64rem;color:#94a3b8;margin-bottom:2px;font-weight:600}
-        .road-v{color:#059669!important;font-weight:600!important}
+        .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.98) !important;
+            color: #334155 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+            border: 1px solid #e2e8f0 !important
+        }
+
+        .leaflet-popup-tip {
+            background: white !important
+        }
+
+        .leaflet-popup-content {
+            font-family: 'Prompt' !important;
+            margin: 12px 14px !important;
+            min-width: 220px
+        }
+
+        .popup-head {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 7px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0
+        }
+
+        .popup-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: white;
+            flex-shrink: 0
+        }
+
+        .popup-icon.injured {
+            background: #ef4444
+        }
+
+        .popup-icon.dead {
+            background: #1e1e1e
+        }
+
+        .popup-title {
+            font-size: 0.85rem;
+            font-weight: 600
+        }
+
+        .popup-title.injured {
+            color: #dc2626
+        }
+
+        .popup-title.dead {
+            color: #1e293b
+        }
+
+        .pr {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            font-size: 0.72rem;
+            gap: 8px
+        }
+
+        .pl {
+            color: #94a3b8;
+            white-space: nowrap
+        }
+
+        .pv {
+            color: #1e293b;
+            font-weight: 500;
+            text-align: right;
+            max-width: 140px;
+            word-break: break-word
+        }
+
+        .popup-section {
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px dashed #e2e8f0
+        }
+
+        .ps-title {
+            font-size: 0.64rem;
+            color: #94a3b8;
+            margin-bottom: 2px;
+            font-weight: 600
+        }
+
+        .road-v {
+            color: #059669 !important;
+            font-weight: 600 !important
+        }
 
         /* Bottom */
-        .bottom-btns{position:absolute;bottom:18px;right:14px;z-index:1000;display:flex;gap:8px}
-        .action-btn{color:white;border:none;padding:10px 16px;border-radius:12px;font-family:'Prompt';font-size:0.8rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s}
-        .action-btn:hover{transform:translateY(-1px)}
-        .export-btn{background:#059669;box-shadow:0 2px 8px rgba(5,150,105,0.2)}
+        .bottom-btns {
+            position: absolute;
+            bottom: 18px;
+            right: 14px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px
+        }
 
-        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(241,245,249,0.97);z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 0.5s}
-        .loading-overlay.fade-out{opacity:0;pointer-events:none}
-        .spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin 0.7s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .loading-text{color:#1e293b;font-size:0.9rem;font-weight:500}
+        .action-btn {
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-family: 'Prompt';
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s
+        }
 
-        .custom-marker{background:none;border:none}
-        .m-dot{border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
-        .m-injured{background:#ef4444;border:2px solid white}
-        .m-dead{background:#1e1e1e;border:2px solid #aaa}
-        .marker-cluster-small{background-color:rgba(239,68,68,0.2)}
-        .marker-cluster-small div{background-color:rgba(239,68,68,0.8);color:white;font-family:'Prompt';font-weight:600}
-        .marker-cluster-medium{background-color:rgba(220,38,38,0.25)}
-        .marker-cluster-medium div{background-color:rgba(220,38,38,0.85);color:white;font-family:'Prompt';font-weight:600}
-        .marker-cluster-large{background-color:rgba(185,28,28,0.3)}
-        .marker-cluster-large div{background-color:rgba(185,28,28,0.9);color:white;font-family:'Prompt';font-weight:600}
+        .action-btn:hover {
+            transform: translateY(-1px)
+        }
+
+        .export-btn {
+            background: #059669;
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2)
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(241, 245, 249, 0.97);
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            transition: opacity 0.5s
+        }
+
+        .loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .loading-text {
+            color: #1e293b;
+            font-size: 0.9rem;
+            font-weight: 500
+        }
+
+        .custom-marker {
+            background: none;
+            border: none
+        }
+
+        .m-dot {
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15)
+        }
+
+        .m-injured {
+            background: #ef4444;
+            border: 2px solid white
+        }
+
+        .m-dead {
+            background: #1e1e1e;
+            border: 2px solid #aaa
+        }
+
+        .marker-cluster-small {
+            background-color: rgba(239, 68, 68, 0.2)
+        }
+
+        .marker-cluster-small div {
+            background-color: rgba(239, 68, 68, 0.8);
+            color: white;
+            font-family: 'Prompt';
+            font-weight: 600
+        }
+
+        .marker-cluster-medium {
+            background-color: rgba(220, 38, 38, 0.25)
+        }
+
+        .marker-cluster-medium div {
+            background-color: rgba(220, 38, 38, 0.85);
+            color: white;
+            font-family: 'Prompt';
+            font-weight: 600
+        }
+
+        .marker-cluster-large {
+            background-color: rgba(185, 28, 28, 0.3)
+        }
+
+        .marker-cluster-large div {
+            background-color: rgba(185, 28, 28, 0.9);
+            color: white;
+            font-family: 'Prompt';
+            font-weight: 600
+        }
     </style>
 </head>
+
 <body>
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
@@ -147,11 +614,16 @@
         <div class="card">
             <div class="card-title"><i class="fa-solid fa-filter"></i> ชั้นข้อมูล</div>
             <div class="filter-btn active injured" id="btn-injured" onclick="toggle('injured',this)">
-                <div class="btn-content"><div class="btn-dot" style="background:#ef4444"></div><span class="btn-label">บาดเจ็บ</span></div>
+                <div class="btn-content">
+                    <div class="btn-dot" style="background:#ef4444"></div><span class="btn-label">บาดเจ็บ</span>
+                </div>
                 <span class="btn-count" id="cnt-inj">0 ปฏิบัติการ</span>
             </div>
             <div class="filter-btn active dead" id="btn-dead" onclick="toggle('dead',this)">
-                <div class="btn-content"><div class="btn-dot" style="background:#1e1e1e;border:2px solid #aaa"></div><span class="btn-label">เสียชีวิต</span></div>
+                <div class="btn-content">
+                    <div class="btn-dot" style="background:#1e1e1e;border:2px solid #aaa"></div><span
+                        class="btn-label">เสียชีวิต</span>
+                </div>
                 <span class="btn-count" id="cnt-dead">0 ปฏิบัติการ</span>
             </div>
             <div class="filter-total">รวม <span id="cnt-total">0</span> ปฏิบัติการ</div>
@@ -159,13 +631,16 @@
     </div>
 
     <div class="bottom-btns">
+        <a href="analysis.html" class="action-btn" style="background:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,0.2);text-decoration:none">
+            <i class="fa-solid fa-chart-bar"></i> วิเคราะห์ช่วงเวลา
+        </a>
         <button class="action-btn export-btn" onclick="exportExcel()">
             <i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel
         </button>
     </div>
 
     <script>
-        const CSV_FILE = 'accident_data_270369.csv';
+        const CSV_FILE = 'accident_by_location.csv';
 
         let map, allData = [], injuredLayer, deadLayer;
 
@@ -173,90 +648,94 @@
             map = L.map('map', {
                 zoomControl: false, attributionControl: false,
                 center: [13.2, 101.0], zoom: 6,
-                maxBounds: [[4.5,96.5],[21.5,106.5]], minZoom: 5
+                maxBounds: [[4.5, 96.5], [21.5, 106.5]], minZoom: 5
             });
             L.control.zoom({ position: 'bottomleft' }).addTo(map);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-                subdomains:'abcd', maxZoom:19
+                subdomains: 'abcd', maxZoom: 19
             }).addTo(map);
 
-            fetch('thailand.geojson').then(r=>r.json()).then(geo=>{
+            fetch('thailand.geojson').then(r => r.json()).then(geo => {
                 let union = geo.features[0];
-                for (let i=1;i<geo.features.length;i++) { try{union=turf.union(union,geo.features[i]);}catch(e){} }
-                const world=turf.polygon([[[-180,90],[-180,-90],[180,-90],[180,90],[-180,90]]]);
-                L.geoJSON(turf.difference(world,union),{style:{color:'transparent',fillColor:'#ffffff',fillOpacity:0.82,weight:0}}).addTo(map);
-                L.geoJSON(geo,{style:{color:'#94a3b8',weight:0.6,opacity:0.4,fillColor:'transparent',fillOpacity:0}}).addTo(map);
-                L.geoJSON(union,{style:{color:'#475569',weight:2,opacity:0.6,fillColor:'transparent',fillOpacity:0}}).addTo(map);
-            }).catch(e=>console.warn('GeoJSON:',e));
+                for (let i = 1; i < geo.features.length; i++) { try { union = turf.union(union, geo.features[i]); } catch (e) { } }
+                const world = turf.polygon([[[-180, 90], [-180, -90], [180, -90], [180, 90], [-180, 90]]]);
+                L.geoJSON(turf.difference(world, union), { style: { color: 'transparent', fillColor: '#ffffff', fillOpacity: 0.82, weight: 0 } }).addTo(map);
+                L.geoJSON(geo, { style: { color: '#94a3b8', weight: 0.6, opacity: 0.4, fillColor: 'transparent', fillOpacity: 0 } }).addTo(map);
+                L.geoJSON(union, { style: { color: '#475569', weight: 2, opacity: 0.6, fillColor: 'transparent', fillOpacity: 0 } }).addTo(map);
+            }).catch(e => console.warn('GeoJSON:', e));
         }
 
-        function makeCluster(bg,fg) {
+        function makeCluster(bg, fg) {
             return L.markerClusterGroup({
-                maxClusterRadius:40,disableClusteringAtZoom:13,showCoverageOnHover:false,
-                iconCreateFunction:c=>L.divIcon({
-                    html:`<div style="background:${bg};width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center"><div style="background:${fg};width:24px;height:24px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;font-family:Prompt">${c.getChildCount()}</div></div>`,
-                    className:'custom-marker',iconSize:[34,34]
-                })
+                maxClusterRadius: 40, disableClusteringAtZoom: 13, showCoverageOnHover: false,
+                iconCreateFunction: c => {
+                    const markers = c.getAllChildMarkers();
+                    const totalOps = markers.reduce((sum, marker) => sum + (marker.options.ops || 1), 0);
+                    return L.divIcon({
+                        html: `<div style="background:${bg};width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center"><div style="background:${fg};width:24px;height:24px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;font-family:Prompt">${totalOps.toLocaleString()}</div></div>`,
+                        className: 'custom-marker', iconSize: [34, 34]
+                    });
+                }
             });
         }
 
         function loadCSV() {
             Papa.parse(CSV_FILE, {
-                download:true, header:true, skipEmptyLines:true,
-                complete:r=>{ allData=r.data; buildAll(); hideLoading(); },
-                error:e=>{ document.querySelector('.loading-text').textContent='เกิดข้อผิดพลาด'; }
+                download: true, header: true, skipEmptyLines: true,
+                complete: r => { allData = r.data; buildAll(); hideLoading(); },
+                error: e => { document.querySelector('.loading-text').textContent = 'เกิดข้อผิดพลาด'; }
             });
         }
 
         function buildAll() {
-            let injOps=0, deadOps=0;
+            let injOps = 0, deadOps = 0;
             const locMap = {};
 
-            injuredLayer = makeCluster('rgba(239,68,68,0.3)','rgba(239,68,68,0.85)');
-            deadLayer = makeCluster('rgba(30,30,30,0.3)','rgba(30,30,30,0.85)');
+            injuredLayer = makeCluster('rgba(239,68,68,0.3)', 'rgba(239,68,68,0.85)');
+            deadLayer = makeCluster('rgba(30,30,30,0.3)', 'rgba(30,30,30,0.85)');
 
             allData.forEach(row => {
                 const lat = parseFloat(row['latitude']);
                 const lon = parseFloat(row['longitude']);
-                const hasCoords = lat && lon && !(lat===0 && lon===0);
+                const hasCoords = lat && lon && !(lat === 0 && lon === 0);
 
-                const condition = (row['อาการ']||'').trim();
-                const isDead = condition==='เสียชีวิต';
-                const ops = parseInt(row['จำนวนปฏิบัติการ']||'1')||1;
-                const province = (row['จังหวัด']||'').trim();
-                const district = (row['อำเภอ']||'').trim();
-                const subdistrict = (row['ตำบล']||'').trim();
-                const road = (row['ถนน']||'').trim();
-                const route_no = (row['หมายเลขทางหลวง']||'').trim();
-                const km = (row['กม.']||'').trim();
+                const condition = (row['อาการ'] || '').trim();
+                const isDead = condition === 'เสียชีวิต';
+                const ops = parseInt(row['จำนวนปฏิบัติการ'] || '1') || 1;
+                const province = (row['จังหวัด'] || '').trim();
+                const district = (row['อำเภอ'] || '').trim();
+                const subdistrict = (row['ตำบล'] || '').trim();
+                const road = (row['ถนน'] || '').trim();
+                const route_no = (row['หมายเลขทางหลวง'] || '').trim();
+                const km = (row['กม.'] || '').trim();
 
-                if(isDead) deadOps+=ops; else injOps+=ops;
+                if (isDead) deadOps += ops; else injOps += ops;
 
                 // Aggregate for top 10 by province
-                if(!locMap[province]) locMap[province] = {province,lat:hasCoords?lat:13.7563,lon:hasCoords?lon:100.5018,ops:0,inj:0,dead:0};
-                if(hasCoords && locMap[province].lat===13.7563) { locMap[province].lat=lat; locMap[province].lon=lon; }
+                if (!locMap[province]) locMap[province] = { province, lat: hasCoords ? lat : 13.7563, lon: hasCoords ? lon : 100.5018, ops: 0, inj: 0, dead: 0 };
+                if (hasCoords && locMap[province].lat === 13.7563) { locMap[province].lat = lat; locMap[province].lon = lon; }
                 locMap[province].ops += ops;
-                if(isDead) locMap[province].dead += ops; else locMap[province].inj += ops;
+                if (isDead) locMap[province].dead += ops; else locMap[province].inj += ops;
 
-                if(!hasCoords) return;
+                if (!hasCoords) return;
 
                 // Marker
-                const sz = isDead?16:12;
-                const cls = isDead?'m-dead':'m-injured';
-                const icon = L.divIcon({className:'custom-marker',html:`<div class="m-dot ${cls}" style="width:${sz}px;height:${sz}px"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
-                const marker = L.marker([lat,lon],{icon,zIndexOffset:isDead?1000:0});
+                const sz = isDead ? 16 : 12;
+                const cls = isDead ? 'm-dead' : 'm-injured';
+                const icon = L.divIcon({ className: 'custom-marker', html: `<div class="m-dot ${cls}" style="width:${sz}px;height:${sz}px"></div>`, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+                const marker = L.marker([lat, lon], { icon, zIndexOffset: isDead ? 1000 : 0, ops: ops });
 
-                const hCls = isDead?'dead':'injured';
-                const hIcon = isDead?'fa-skull-crossbones':'fa-user-injured';
+                const hCls = isDead ? 'dead' : 'injured';
+                const hIcon = isDead ? 'fa-skull-crossbones' : 'fa-user-injured';
 
                 // Road/location section - shown at top of popup right after header
                 let roadHtml = '';
-                if(road||route_no||km) {
+                if (road || route_no || km) {
                     roadHtml = `<div class="popup-section" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:5px;padding-bottom:5px;border-bottom:1px dashed #e2e8f0"><div class="ps-title"><i class="fa-solid fa-road"></i> ข้อมูลถนน</div>
-                        ${road?`<div class="pr"><span class="pl">ถนน:</span><span class="pv road-v">${road}</span></div>`:''}
-                        ${route_no?`<div class="pr"><span class="pl">ทางหลวง:</span><span class="pv" style="font-weight:600">${route_no}</span></div>`:''}
-                        ${km?`<div class="pr"><span class="pl">กม.:</span><span class="pv" style="font-weight:600">${km}</span></div>`:''}
+                        ${road ? `<div class="pr"><span class="pl">ถนน:</span><span class="pv road-v">${road}</span></div>` : ''}
+                        ${route_no ? `<div class="pr"><span class="pl">ทางหลวง:</span><span class="pv" style="font-weight:600">${route_no}</span></div>` : ''}
+                        ${km ? `<div class="pr"><span class="pl">กม.:</span><span class="pv" style="font-weight:600">${km}</span></div>` : ''}
                     </div>`;
                 }
 
@@ -268,78 +747,79 @@
                     <div class="pr"><span class="pl">ตำบล:</span><span class="pv">${subdistrict}</span></div>
                     <div class="pr"><span class="pl">ปฏิบัติการ:</span><span class="pv">${ops}</span></div>
                     <div class="pr"><span class="pl">พิกัด:</span><span class="pv">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
-                </div>`,{maxWidth:280});
+                </div>`, { maxWidth: 280 });
 
-                if(isDead) deadLayer.addLayer(marker); else injuredLayer.addLayer(marker);
+                if (isDead) deadLayer.addLayer(marker); else injuredLayer.addLayer(marker);
             });
 
             map.addLayer(injuredLayer);
             map.addLayer(deadLayer);
 
-            document.getElementById('cnt-inj').textContent = injOps.toLocaleString()+' ปฏิบัติการ';
-            document.getElementById('cnt-dead').textContent = deadOps.toLocaleString()+' ปฏิบัติการ';
-            document.getElementById('cnt-total').textContent = (injOps+deadOps).toLocaleString();
+            document.getElementById('cnt-inj').textContent = injOps.toLocaleString() + ' ปฏิบัติการ';
+            document.getElementById('cnt-dead').textContent = deadOps.toLocaleString() + ' ปฏิบัติการ';
+            document.getElementById('cnt-total').textContent = (injOps + deadOps).toLocaleString();
 
             buildTop10(locMap);
         }
 
         function buildTop10(locMap) {
-            const sorted = Object.values(locMap).sort((a,b)=>b.ops-a.ops).slice(0,10);
+            const sorted = Object.values(locMap).sort((a, b) => b.ops - a.ops).slice(0, 10);
             const container = document.getElementById('top10List');
             container.innerHTML = `<div class="top-header">
                 <div class="th-rank">#</div>
                 <div class="th-name">จังหวัด</div>
                 <div class="th-stat">รวม</div>
-                <div class="th-stat">เจ็บ</div>
+                <div class="th-stat">บาดเจ็บ</div>
                 <div class="th-stat">เสียชีวิต</div>
             </div>`;
-            sorted.forEach((loc,i) => {
-                const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+            sorted.forEach((loc, i) => {
+                const rankCls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
                 const item = document.createElement('div');
                 item.className = 'top-item';
                 item.innerHTML = `
-                    <div class="top-rank ${rankCls}">${i+1}</div>
+                    <div class="top-rank ${rankCls}">${i + 1}</div>
                     <div class="top-name">${loc.province}</div>
                     <div class="top-stat total">${loc.ops.toLocaleString()}</div>
                     <div class="top-stat inj">${loc.inj.toLocaleString()}</div>
                     <div class="top-stat dead">${loc.dead.toLocaleString()}</div>`;
-                item.onclick = () => map.flyTo([loc.lat,loc.lon], 9, {duration:1});
+                item.onclick = () => map.flyTo([loc.lat, loc.lon], 9, { duration: 1 });
                 container.appendChild(item);
             });
         }
 
-        function toggle(type,el) {
-            const on=el.classList.contains('active');
-            if(on){el.classList.remove('active');map.removeLayer(type==='injured'?injuredLayer:deadLayer);}
-            else{el.classList.add('active');map.addLayer(type==='injured'?injuredLayer:deadLayer);}
+        function toggle(type, el) {
+            const on = el.classList.contains('active');
+            if (on) { el.classList.remove('active'); map.removeLayer(type === 'injured' ? injuredLayer : deadLayer); }
+            else { el.classList.add('active'); map.addLayer(type === 'injured' ? injuredLayer : deadLayer); }
         }
 
         // ===== EXCEL EXPORT =====
         function exportExcel() {
-            const headers = ['จังหวัด','อำเภอ','ตำบล','อาการ','จำนวนปฏิบัติการ','latitude','longitude','ถนน','หมายเลขทางหลวง','กม.'];
+            const headers = ['จังหวัด', 'อำเภอ', 'ตำบล', 'อาการ', 'จำนวนปฏิบัติการ', 'latitude', 'longitude', 'ถนน', 'หมายเลขทางหลวง', 'กม.'];
             const rows = allData.map(r => ({
-                'จังหวัด':r['จังหวัด']||'','อำเภอ':r['อำเภอ']||'','ตำบล':r['ตำบล']||'',
-                'อาการ':r['อาการ']||'','จำนวนปฏิบัติการ':r['จำนวนปฏิบัติการ']||'',
-                'latitude':r['latitude']||'','longitude':r['longitude']||'',
-                'ถนน':r['ถนน']||'',
-                'หมายเลขทางหลวง':r['หมายเลขทางหลวง']||'',
-                'กม.':r['กม.']||''
+                'จังหวัด': r['จังหวัด'] || '', 'อำเภอ': r['อำเภอ'] || '', 'ตำบล': r['ตำบล'] || '',
+                'อาการ': r['อาการ'] || '', 'จำนวนปฏิบัติการ': r['จำนวนปฏิบัติการ'] || '',
+                'latitude': r['latitude'] || '', 'longitude': r['longitude'] || '',
+                'ถนน': r['ถนน'] || '',
+                'หมายเลขทางหลวง': r['หมายเลขทางหลวง'] || '',
+                'กม.': r['กม.'] || ''
             }));
-            const ws = XLSX.utils.json_to_sheet(rows,{header:headers});
-            ws['!cols'] = [{wch:16},{wch:18},{wch:16},{wch:10},{wch:14},{wch:12},{wch:12},{wch:30},{wch:14},{wch:10}];
+            const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+            ws['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 14 }, { wch: 10 }];
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb,ws,'ข้อมูลอุบัติเหตุ');
-            XLSX.writeFile(wb,'accident_data_30dec68_5jan69.xlsx');
+            XLSX.utils.book_append_sheet(wb, ws, 'ข้อมูลอุบัติเหตุ');
+            XLSX.writeFile(wb, 'accident_data_30dec68_5jan69.xlsx');
         }
 
         function hideLoading() {
-            const o=document.getElementById('loadingOverlay');
+            const o = document.getElementById('loadingOverlay');
             o.classList.add('fade-out');
-            setTimeout(()=>o.style.display='none',500);
+            setTimeout(() => o.style.display = 'none', 500);
         }
 
         initMap();
         loadCSV();
     </script>
 </body>
+
 </html>

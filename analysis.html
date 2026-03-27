@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>วิเคราะห์ช่วงเวลาอุบัติเหตุ | สพฉ.</title>
+    <meta name="description" content="วิเคราะห์ข้อมูลอุบัติเหตุยานยนต์ตามช่วงเวลาและจังหวัด ข้อมูล 30 ธ.ค. 68 ถึง 5 ม.ค. 69">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box}
+        body,html{margin:0;padding:0;min-height:100vh;background:#f1f5f9;color:#334155;font-family:'Prompt',sans-serif}
+
+        .page-header{background:white;border-bottom:1px solid #e2e8f0;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+        .header-left{display:flex;align-items:center;gap:14px}
+        .header-icon{width:44px;height:44px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:white}
+        .header-left h1{margin:0;font-size:1.1rem;font-weight:600;color:#1e293b}
+        .header-left p{margin:2px 0 0;font-size:0.72rem;color:#64748b}
+        .header-right{display:flex;gap:10px}
+        .nav-link{color:#475569;text-decoration:none;font-size:0.78rem;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:1px solid #e2e8f0;transition:all 0.2s;background:white}
+        .nav-link:hover{background:#f8fafc;border-color:#cbd5e1}
+        .nav-link.primary{background:#059669;color:white;border-color:#059669}
+        .nav-link.primary:hover{background:#047857}
+
+        .container{max-width:1200px;margin:0 auto;padding:24px 32px}
+
+        /* Summary cards */
+        .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+        .summary-card{background:white;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,0.04)}
+        .summary-card .label{font-size:0.72rem;color:#94a3b8;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+        .summary-card .value{font-size:1.8rem;font-weight:700}
+        .summary-card.total .value{color:#1e293b}
+        .summary-card.injured .value{color:#ef4444}
+        .summary-card.dead .value{color:#1e293b}
+        .summary-card.dead .label{color:#64748b}
+
+        /* Section */
+        .section{background:white;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px;box-shadow:0 1px 6px rgba(0,0,0,0.04)}
+        .section-title{font-size:0.9rem;font-weight:700;color:#1e293b;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+        .section-title i{color:#2563eb;font-size:0.85rem}
+        .section-subtitle{font-size:0.68rem;color:#94a3b8;margin-bottom:18px}
+
+        /* Bar chart */
+        .chart{display:flex;align-items:stretch;gap:6px;height:420px;padding:0 4px;position:relative;border-bottom:2px solid #e2e8f0}
+        .chart-bar-group{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative}
+        .bar-wrapper{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;position:relative}
+        .bar{width:100%;max-width:36px;border-radius:6px 6px 0 0;transition:all 0.3s;position:relative;min-height:4px}
+        .bar.injured{background:linear-gradient(180deg,#f87171,#ef4444)}
+        .bar.dead{background:linear-gradient(180deg,#475569,#1e293b);position:absolute;bottom:0;left:50%;transform:translateX(-50%);max-width:14px;border-radius:4px 4px 0 0;z-index:2}
+        .bar-label{font-size:0.62rem;color:#94a3b8;white-space:nowrap;margin-top:8px;font-weight:600}
+        .bar-value{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:0.58rem;color:#1e293b;white-space:nowrap;font-weight:700;opacity:0;transition:opacity 0.2s}
+        .chart-bar-group:hover .bar-value{opacity:1}
+        .chart-bar-group:hover .bar.injured{filter:brightness(1.1);box-shadow:0 -4px 12px rgba(239,68,68,0.2)}
+        .chart-bar-group.active .bar.injured{background:linear-gradient(180deg,#60a5fa,#2563eb);box-shadow:0 -4px 12px rgba(37,99,235,0.25)}
+        .chart-bar-group.active .bar.dead{background:linear-gradient(180deg,#06b6d4,#0891b2)}
+        .chart-bar-group.active .bar-label{color:#2563eb;font-weight:700}
+        .chart-bar-group.active .bar-value{opacity:1;color:#2563eb}
+
+        /* Legend */
+        .chart-legend{display:flex;gap:16px;justify-content:center;margin-top:14px;font-size:0.68rem;color:#64748b}
+        .legend-item{display:flex;align-items:center;gap:5px}
+        .legend-dot{width:10px;height:10px;border-radius:3px}
+        .legend-dot.inj{background:#ef4444}
+        .legend-dot.dead{background:#1e293b}
+
+        /* Drilldown */
+        .drilldown-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+        .drilldown-title{font-size:0.82rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px}
+        .time-badge{background:#2563eb;color:white;padding:2px 10px;border-radius:20px;font-size:0.72rem}
+        .close-btn{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:'Prompt';font-size:0.7rem;color:#64748b;display:flex;align-items:center;gap:4px;transition:all 0.2s}
+        .close-btn:hover{background:#e2e8f0;color:#1e293b}
+
+        /* Table */
+        table{width:100%;border-collapse:collapse}
+        thead th{text-align:left;font-size:0.68rem;color:#94a3b8;font-weight:600;padding:10px 12px;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:white}
+        thead th.num{text-align:right}
+        tbody tr{border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background 0.15s}
+        tbody tr:hover{background:#f8fafc}
+        tbody td{padding:10px 12px;font-size:0.75rem}
+        tbody td.num{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+        tbody td.province-name{font-weight:500;color:#1e293b}
+        tbody td.val-total{color:#1e293b}
+        tbody td.val-inj{color:#ef4444}
+        tbody td.val-dead{color:#475569}
+        .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:0.6rem;font-weight:700;color:white;margin-right:6px}
+        .rank-1{background:#f59e0b}
+        .rank-2{background:#94a3b8}
+        .rank-3{background:#b45309}
+        .rank-other{background:#e2e8f0;color:#94a3b8}
+
+        .table-scroll{max-height:480px;overflow-y:auto;border-radius:8px}
+        .table-scroll::-webkit-scrollbar{width:4px}
+        .table-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+        /* Loading */
+        .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:14px}
+        .spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin 0.7s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading-text{color:#94a3b8;font-size:0.82rem}
+
+        @media(max-width:768px){
+            .summary-row{grid-template-columns:1fr}
+            .container{padding:16px}
+            .chart{height:200px}
+            .page-header{flex-direction:column;gap:10px}
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <div class="header-left">
+            <div class="header-icon"><i class="fa-solid fa-chart-bar"></i></div>
+            <div>
+                <h1>วิเคราะห์ช่วงเวลาอุบัติเหตุ</h1>
+                <p>สถาบันการแพทย์ฉุกเฉินแห่งชาติ (สพฉ.) &bull; ข้อมูล 30 ธ.ค. 68 ถึง 5 ม.ค. 69</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <a href="#" class="nav-link primary" onclick="exportExcel(); return false;"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</a>
+            <a href="index.html" class="nav-link"><i class="fa-solid fa-map"></i> แผนที่อุบัติเหตุ</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Summary -->
+        <div class="summary-row">
+            <div class="summary-card total">
+                <div class="label">ปฏิบัติการทั้งหมด</div>
+                <div class="value" id="sumTotal">-</div>
+            </div>
+            <div class="summary-card injured">
+                <div class="label">บาดเจ็บ</div>
+                <div class="value" id="sumInj">-</div>
+            </div>
+            <div class="summary-card dead">
+                <div class="label">เสียชีวิต</div>
+                <div class="value" id="sumDead">-</div>
+            </div>
+        </div>
+
+        <!-- Hourly chart -->
+        <div class="section">
+            <div class="section-title"><i class="fa-solid fa-clock"></i> จำนวนปฏิบัติการแยกตามช่วงเวลา (24 ชั่วโมง)</div>
+            <div class="section-subtitle">คลิกแท่งกราฟเพื่อดูรายจังหวัดในช่วงเวลานั้น</div>
+            <div class="chart" id="chart">
+                <div class="loading"><div class="spinner"></div><div class="loading-text">กำลังโหลดข้อมูล...</div></div>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item"><div class="legend-dot inj"></div> บาดเจ็บ</div>
+                <div class="legend-item"><div class="legend-dot dead"></div> เสียชีวิต</div>
+            </div>
+        </div>
+
+        <!-- Drilldown table -->
+        <div class="section drilldown" id="drilldownSection" style="display:none">
+            <div class="drilldown-header">
+                <div class="drilldown-title" id="drilldownTitle"></div>
+                <button class="close-btn" onclick="closeDrilldown()"><i class="fa-solid fa-xmark"></i> ปิด</button>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th>จังหวัด</th>
+                            <th class="num">ปฏิบัติการรวม</th>
+                            <th class="num">บาดเจ็บ</th>
+                            <th class="num">เสียชีวิต</th>
+                        </tr>
+                    </thead>
+                    <tbody id="drilldownBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- All provinces table -->
+        <div class="section">
+            <div class="section-title"><i class="fa-solid fa-list-ol"></i> สรุปรายจังหวัด (ทุกช่วงเวลา)</div>
+            <div class="section-subtitle">เรียงตามจำนวนปฏิบัติการสูงสุด</div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th>จังหวัด</th>
+                            <th class="num">ปฏิบัติการรวม</th>
+                            <th class="num">บาดเจ็บ</th>
+                            <th class="num">เสียชีวิต</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allProvBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CSV_FILE = 'accident_by_time.csv';
+
+        let allData = [];
+        let hourlyData = {};
+
+        function init() {
+            Papa.parse(CSV_FILE, {
+                download: true, header: true, skipEmptyLines: true,
+                complete: r => { allData = r.data; processData(); },
+                error: e => { document.getElementById('chart').innerHTML = '<div class="loading"><div class="loading-text">เกิดข้อผิดพลาดในการโหลดข้อมูล</div></div>'; }
+            });
+        }
+
+        function processData() {
+            let totalAll=0, totalInj=0, totalDead=0;
+            const provMap = {};
+
+            for(let h=0; h<24; h++) {
+                const key = String(h).padStart(2,'0');
+                hourlyData[key] = { total:0, inj:0, dead:0, provinces:{} };
+            }
+
+            allData.forEach(row => {
+                const timePeriod = (row['ช่วงเวลา']||'').trim();
+                const condition = (row['อาการ']||'').trim();
+                const isDead = condition === 'เสียชีวิต';
+                const ops = parseInt(row['จำนวนปฏิบัติการ']||'1') || 1;
+                const province = (row['จังหวัด']||'').trim();
+                if(!province) return;
+
+                const hourMatch = timePeriod.match(/^(\d{2}):/);
+                const hour = hourMatch ? hourMatch[1] : null;
+
+                totalAll += ops;
+                if(isDead) totalDead += ops; else totalInj += ops;
+
+                if(!provMap[province]) provMap[province] = {province, total:0, inj:0, dead:0};
+                provMap[province].total += ops;
+                if(isDead) provMap[province].dead += ops; else provMap[province].inj += ops;
+
+                if(hour && hourlyData[hour]) {
+                    hourlyData[hour].total += ops;
+                    if(isDead) hourlyData[hour].dead += ops; else hourlyData[hour].inj += ops;
+
+                    if(!hourlyData[hour].provinces[province]) hourlyData[hour].provinces[province] = {province, total:0, inj:0, dead:0};
+                    hourlyData[hour].provinces[province].total += ops;
+                    if(isDead) hourlyData[hour].provinces[province].dead += ops; else hourlyData[hour].provinces[province].inj += ops;
+                }
+            });
+
+            document.getElementById('sumTotal').textContent = totalAll.toLocaleString();
+            document.getElementById('sumInj').textContent = totalInj.toLocaleString();
+            document.getElementById('sumDead').textContent = totalDead.toLocaleString();
+
+            renderChart();
+            renderAllProvinces(provMap);
+        }
+
+        function renderChart() {
+            const chart = document.getElementById('chart');
+            const maxOps = Math.max(...Object.values(hourlyData).map(h => h.total));
+
+            let html = '';
+            for(let h=0; h<24; h++) {
+                const key = String(h).padStart(2,'0');
+                const d = hourlyData[key];
+                const injH = Math.max((d.total / maxOps) * 100, 3);
+                const deadH = d.dead > 0 ? Math.max((d.dead / maxOps) * 100, 3) : 0;
+
+                html += `<div class="chart-bar-group" data-hour="${key}" onclick="selectHour('${key}', this)">
+                    <div class="bar-value">${d.total.toLocaleString()}</div>
+                    <div class="bar-wrapper">
+                        <div class="bar injured" style="height:${injH}%"></div>
+                        ${d.dead > 0 ? `<div class="bar dead" style="height:${deadH}%"></div>` : ''}
+                    </div>
+                    <div class="bar-label">${key}:00</div>
+                </div>`;
+            }
+            chart.innerHTML = html;
+        }
+
+        let activeHour = null;
+
+        function selectHour(hour, el) {
+            // Toggle: click same bar to deselect
+            if(activeHour === hour) { closeDrilldown(); return; }
+            activeHour = hour;
+
+            document.querySelectorAll('.chart-bar-group').forEach(g => g.classList.remove('active'));
+            el.classList.add('active');
+
+            const d = hourlyData[hour];
+            const section = document.getElementById('drilldownSection');
+            const title = document.getElementById('drilldownTitle');
+            const body = document.getElementById('drilldownBody');
+
+            title.innerHTML = `<i class="fa-solid fa-magnifying-glass-chart"></i> รายจังหวัด ช่วงเวลา <span class="time-badge">${hour}:00 - ${hour}:59</span> <span style="color:#94a3b8;font-weight:400;font-size:0.72rem">(${d.total.toLocaleString()} ปฏิบัติการ)</span>`;
+
+            const sorted = Object.values(d.provinces).sort((a,b) => b.total - a.total);
+            body.innerHTML = sorted.map((p, i) => {
+                const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+                return `<tr>
+                    <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
+                    <td class="province-name">${p.province}</td>
+                    <td class="num val-total">${p.total.toLocaleString()}</td>
+                    <td class="num val-inj">${p.inj.toLocaleString()}</td>
+                    <td class="num val-dead">${p.dead.toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior:'smooth', block:'start' });
+        }
+
+        function closeDrilldown() {
+            activeHour = null;
+            document.querySelectorAll('.chart-bar-group').forEach(g => g.classList.remove('active'));
+            document.getElementById('drilldownSection').style.display = 'none';
+        }
+
+        function renderAllProvinces(provMap) {
+            const sorted = Object.values(provMap).sort((a,b) => b.total - a.total);
+            const body = document.getElementById('allProvBody');
+            body.innerHTML = sorted.map((p, i) => {
+                const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+                return `<tr>
+                    <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
+                    <td class="province-name">${p.province}</td>
+                    <td class="num val-total">${p.total.toLocaleString()}</td>
+                    <td class="num val-inj">${p.inj.toLocaleString()}</td>
+                    <td class="num val-dead">${p.dead.toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function exportExcel() {
+            const headers = ['จังหวัด','อำเภอ','อาการ','ช่วงเวลา','จำนวนปฏิบัติการ','latitude','longitude','ถนน','ตำบล/ชุมชน','ที่อยู่เต็ม'];
+            const rows = allData.map(r => ({
+                'จังหวัด':r['จังหวัด']||'','อำเภอ':r['อำเภอ']||'',
+                'อาการ':r['อาการ']||'','ช่วงเวลา':r['ช่วงเวลา']||'',
+                'จำนวนปฏิบัติการ':r['จำนวนปฏิบัติการ']||'',
+                'latitude':r['latitude']||'','longitude':r['longitude']||'',
+                'ถนน':r['ถนน']||'','ตำบล/ชุมชน':r['ตำบล/ชุมชน']||'',
+                'ที่อยู่เต็ม':r['ที่อยู่เต็ม']||''
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows,{header:headers});
+            ws['!cols'] = [{wch:16},{wch:18},{wch:10},{wch:14},{wch:14},{wch:12},{wch:12},{wch:30},{wch:16},{wch:55}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'ข้อมูลอุบัติเหตุช่วงเวลา');
+            XLSX.writeFile(wb, 'accident_by_time.xlsx');
+        }
+
+        init();
+    </script>
+</body>
+</html>
