@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แผนที่อุบัติเหตุยานยนต์</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box}
+        body,html{margin:0;padding:0;height:100%;background:#f1f5f9;color:#334155;font-family:'Prompt',sans-serif;overflow:hidden}
+        #map{height:100vh;width:100%;z-index:1}
+
+        .header{position:absolute;top:14px;left:14px;z-index:1000;background:rgba(255,255,255,0.96);padding:12px 18px;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,0.07);backdrop-filter:blur(10px);display:flex;align-items:center;gap:12px;border-left:4px solid #1e3a5f;max-width:380px}
+        .header-icon{width:40px;height:40px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;flex-shrink:0}
+        .header h1{margin:0;font-size:0.95rem;color:#1e293b;font-weight:600}
+        .header p{margin:2px 0 0;font-size:0.68rem;color:#64748b;font-weight:300}
+
+        /* Right panel */
+        .right-panel{position:absolute;top:14px;right:14px;z-index:1000;width:280px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 80px);overflow-y:auto}
+        .right-panel::-webkit-scrollbar{width:4px}
+        .right-panel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+        .card{background:rgba(255,255,255,0.98);padding:14px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.06);border:1px solid #e2e8f0}
+        .card-title{font-weight:700;color:#1e293b;font-size:0.82rem;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+        .card-title i{color:#2563eb;font-size:0.8rem}
+
+        .filter-btn{display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;padding:7px 10px;cursor:pointer;transition:all 0.2s;user-select:none;margin-bottom:5px}
+        .filter-btn:last-child{margin-bottom:0}
+        .filter-btn:hover{border-color:#cbd5e1}
+        .btn-content{display:flex;align-items:center;gap:7px}
+        .btn-dot{width:14px;height:14px;border-radius:50%}
+        .btn-label{font-size:0.78rem;color:#475569}
+        .btn-count{font-size:0.72rem;font-weight:700;color:#64748b}
+        .filter-btn.active.injured{background:#fef2f2;border-color:#fca5a5}
+        .filter-btn.active.injured .btn-dot{background:#ef4444;box-shadow:0 0 5px rgba(239,68,68,0.3)}
+        .filter-btn.active.injured .btn-label{color:#b91c1c;font-weight:600}
+        .filter-btn.active.injured .btn-count{color:#b91c1c}
+        .filter-btn.active.dead{background:#f1f5f9;border-color:#94a3b8}
+        .filter-btn.active.dead .btn-dot{background:#1e1e1e;border:2px solid #aaa}
+        .filter-btn.active.dead .btn-label{color:#1e293b;font-weight:600}
+        .filter-btn.active.dead .btn-count{color:#1e293b}
+        .filter-total{text-align:center;margin-top:6px;font-size:0.72rem;color:#94a3b8}
+        .filter-total span{font-weight:700;color:#1e293b;font-size:0.9rem}
+
+        /* Top 10 */
+        .top-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:0.72rem;cursor:pointer;transition:background 0.15s;border-radius:4px;padding:4px 4px}
+        .top-item:hover{background:#f8fafc}
+        .top-item:last-child{border-bottom:none}
+        .top-rank{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.6rem;color:white;flex-shrink:0}
+        .rank-1{background:#f59e0b}
+        .rank-2{background:#94a3b8}
+        .rank-3{background:#b45309}
+        .rank-other{background:#cbd5e1;color:#64748b}
+        .top-name{flex:1;color:#334155;font-weight:500;line-height:1.2}
+        .top-name small{display:block;color:#94a3b8;font-weight:400;font-size:0.62rem}
+        .top-count{font-weight:700;color:#dc2626;font-size:0.78rem;white-space:nowrap}
+
+        /* Geocode progress */
+        .geo-progress{display:flex;align-items:center;gap:8px;font-size:0.68rem;color:#64748b}
+        .geo-progress-bar{flex:1;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden}
+        .geo-progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);border-radius:2px;transition:width 0.3s;width:0%}
+        .geo-status{display:flex;justify-content:space-between;font-size:0.62rem;color:#94a3b8;margin-top:2px}
+        .geo-btn{background:#2563eb;color:white;border:none;padding:5px 12px;border-radius:8px;font-family:'Prompt';font-size:0.7rem;font-weight:600;cursor:pointer;width:100%;margin-top:6px}
+        .geo-btn:disabled{background:#94a3b8;cursor:not-allowed}
+        .geo-btn.running{background:#d97706}
+        .geo-btn.done{background:#059669}
+
+        /* Popup */
+        .leaflet-popup-content-wrapper{background:rgba(255,255,255,0.98)!important;color:#334155!important;border-radius:14px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important;border:1px solid #e2e8f0!important}
+        .leaflet-popup-tip{background:white!important}
+        .leaflet-popup-content{font-family:'Prompt'!important;margin:12px 14px!important;min-width:220px}
+        .popup-head{display:flex;align-items:center;gap:7px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #e2e8f0}
+        .popup-icon{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;flex-shrink:0}
+        .popup-icon.injured{background:#ef4444}
+        .popup-icon.dead{background:#1e1e1e}
+        .popup-title{font-size:0.85rem;font-weight:600}
+        .popup-title.injured{color:#dc2626}
+        .popup-title.dead{color:#1e293b}
+        .pr{display:flex;justify-content:space-between;margin-bottom:2px;font-size:0.72rem;gap:8px}
+        .pl{color:#94a3b8;white-space:nowrap}
+        .pv{color:#1e293b;font-weight:500;text-align:right;max-width:140px;word-break:break-word}
+        .popup-section{margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0}
+        .ps-title{font-size:0.64rem;color:#94a3b8;margin-bottom:2px;font-weight:600}
+        .road-v{color:#059669!important;font-weight:600!important}
+
+        /* Bottom */
+        .bottom-btns{position:absolute;bottom:18px;right:14px;z-index:1000;display:flex;gap:8px}
+        .action-btn{color:white;border:none;padding:10px 16px;border-radius:12px;font-family:'Prompt';font-size:0.8rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s}
+        .action-btn:hover{transform:translateY(-1px)}
+        .export-btn{background:#059669;box-shadow:0 2px 8px rgba(5,150,105,0.2)}
+
+        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(241,245,249,0.97);z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 0.5s}
+        .loading-overlay.fade-out{opacity:0;pointer-events:none}
+        .spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin 0.7s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading-text{color:#1e293b;font-size:0.9rem;font-weight:500}
+
+        .custom-marker{background:none;border:none}
+        .m-dot{border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+        .m-injured{background:#ef4444;border:2px solid white}
+        .m-dead{background:#1e1e1e;border:2px solid #aaa}
+        .marker-cluster-small{background-color:rgba(239,68,68,0.2)}
+        .marker-cluster-small div{background-color:rgba(239,68,68,0.8);color:white;font-family:'Prompt';font-weight:600}
+        .marker-cluster-medium{background-color:rgba(220,38,38,0.25)}
+        .marker-cluster-medium div{background-color:rgba(220,38,38,0.85);color:white;font-family:'Prompt';font-weight:600}
+        .marker-cluster-large{background-color:rgba(185,28,28,0.3)}
+        .marker-cluster-large div{background-color:rgba(185,28,28,0.9);color:white;font-family:'Prompt';font-weight:600}
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">กำลังโหลดข้อมูล...</div>
+    </div>
+
+    <div class="header">
+        <div class="header-icon"><i class="fa-solid fa-car-burst"></i></div>
+        <div>
+            <h1>แผนที่อุบัติเหตุยานยนต์</h1>
+            <p>สถาบันการแพทย์ฉุกเฉินแห่งชาติ (สพฉ.)<br>ข้อมูล 27 มี.ค. 2569</p>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="right-panel">
+        <!-- Filter -->
+        <div class="card">
+            <div class="card-title"><i class="fa-solid fa-filter"></i> ชั้นข้อมูล</div>
+            <div class="filter-btn active injured" id="btn-injured" onclick="toggle('injured',this)">
+                <div class="btn-content"><div class="btn-dot" style="background:#ef4444"></div><span class="btn-label">บาดเจ็บ</span></div>
+                <span class="btn-count" id="cnt-inj">0 ปฏิบัติการ</span>
+            </div>
+            <div class="filter-btn active dead" id="btn-dead" onclick="toggle('dead',this)">
+                <div class="btn-content"><div class="btn-dot" style="background:#1e1e1e;border:2px solid #aaa"></div><span class="btn-label">เสียชีวิต</span></div>
+                <span class="btn-count" id="cnt-dead">0 ปฏิบัติการ</span>
+            </div>
+            <div class="filter-total">รวม <span id="cnt-total">0</span> ปฏิบัติการ</div>
+        </div>
+
+        <!-- Top 10 -->
+        <div class="card">
+            <div class="card-title"><i class="fa-solid fa-ranking-star"></i> 10 อันดับ ปฏิบัติการสูงสุด</div>
+            <div id="top10List"></div>
+        </div>
+
+        <!-- Longdo Geocode -->
+        <div class="card" id="geoCard">
+            <div class="card-title"><i class="fa-solid fa-road"></i> ค้นหาถนน (Longdo API)</div>
+            <div class="geo-progress">
+                <div class="geo-progress-bar"><div class="geo-progress-fill" id="geoBar"></div></div>
+                <span id="geoPct">0%</span>
+            </div>
+            <div class="geo-status">
+                <span id="geoStatus">พร้อมเริ่ม</span>
+                <span id="geoFound">พบถนน: 0</span>
+            </div>
+            <button class="geo-btn" id="geoBtn" onclick="startGeocode()"><i class="fa-solid fa-play"></i> เริ่มค้นหาถนน</button>
+        </div>
+    </div>
+
+    <div class="bottom-btns">
+        <button class="action-btn export-btn" onclick="exportExcel()">
+            <i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel
+        </button>
+    </div>
+
+    <script>
+        const LONGDO_KEY = '7128c9a933d07977ce4797f940799b06';
+        const CSV_FILE = 'accident_data_270369.csv';
+        const CACHE_KEY = 'longdo_geocache_v2';
+
+        let map, allData = [], injuredLayer, deadLayer;
+        let geoCache = {};
+        let geoRunning = false, geoStop = false;
+
+        // Load cache from localStorage
+        try { geoCache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch(e) { geoCache = {}; }
+
+        function saveCache() { try { localStorage.setItem(CACHE_KEY, JSON.stringify(geoCache)); } catch(e){} }
+
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: false, attributionControl: false,
+                center: [13.2, 101.0], zoom: 6,
+                maxBounds: [[4.5,96.5],[21.5,106.5]], minZoom: 5
+            });
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:19 }).addTo(map);
+
+            fetch('thailand.geojson').then(r=>r.json()).then(geo=>{
+                let union = geo.features[0];
+                for (let i=1;i<geo.features.length;i++) { try{union=turf.union(union,geo.features[i]);}catch(e){} }
+                const world=turf.polygon([[[-180,90],[-180,-90],[180,-90],[180,90],[-180,90]]]);
+                L.geoJSON(turf.difference(world,union),{style:{color:'transparent',fillColor:'#ffffff',fillOpacity:0.82,weight:0}}).addTo(map);
+                L.geoJSON(geo,{style:{color:'#94a3b8',weight:0.6,opacity:0.4,fillColor:'transparent',fillOpacity:0}}).addTo(map);
+                L.geoJSON(union,{style:{color:'#475569',weight:2,opacity:0.6,fillColor:'transparent',fillOpacity:0}}).addTo(map);
+            }).catch(e=>console.warn('GeoJSON:',e));
+        }
+
+        function makeCluster(bg,fg) {
+            return L.markerClusterGroup({
+                maxClusterRadius:40,disableClusteringAtZoom:13,showCoverageOnHover:false,
+                iconCreateFunction:c=>L.divIcon({
+                    html:`<div style="background:${bg};width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center"><div style="background:${fg};width:24px;height:24px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;font-family:Prompt">${c.getChildCount()}</div></div>`,
+                    className:'custom-marker',iconSize:[34,34]
+                })
+            });
+        }
+
+        function loadCSV() {
+            Papa.parse(CSV_FILE, {
+                download:true, header:true, skipEmptyLines:true,
+                complete:r=>{ allData=r.data; buildAll(); hideLoading(); updateGeoUI(); },
+                error:e=>{ document.querySelector('.loading-text').textContent='เกิดข้อผิดพลาด'; }
+            });
+        }
+
+        function buildAll() {
+            let injOps=0, deadOps=0;
+            const locMap = {}; // key: "province|district|subdistrict" => {lat,lon,ops,rows[]}
+
+            injuredLayer = makeCluster('rgba(239,68,68,0.3)','rgba(239,68,68,0.85)');
+            deadLayer = makeCluster('rgba(30,30,30,0.3)','rgba(30,30,30,0.85)');
+
+            allData.forEach(row => {
+                const lat = parseFloat(row['latitude']);
+                const lon = parseFloat(row['longitude']);
+                if(!lat||!lon||(lat===0&&lon===0)) return;
+
+                const condition = (row['อาการ']||'').trim();
+                const isDead = condition==='เสียชีวิต';
+                const ops = parseInt(row['จำนวนปฏิบัติการ']||'1')||1;
+                const province = (row['จังหวัด']||'').trim();
+                const district = (row['อำเภอ']||'').trim();
+                const subdistrict = (row['ตำบล']||'').trim();
+
+                if(isDead) deadOps+=ops; else injOps+=ops;
+
+                // Aggregate for top 10
+                const locKey = `${province}|${district}|${subdistrict}`;
+                if(!locMap[locKey]) locMap[locKey] = {province,district,subdistrict,lat,lon,ops:0};
+                locMap[locKey].ops += ops;
+
+                // Get cached road data
+                const cKey = `${lat},${lon}`;
+                const cached = geoCache[cKey];
+                const road = (row['ถนน']||'').trim() || cached?.road;
+                const route_no = (row['หมายเลขทางหลวง']||'').trim();
+                const km = (row['กม.']||'').trim();
+                const addr = cached?.address || (row['ที่อยู่เต็ม']||'').trim();
+
+                // Marker
+                const sz = isDead?16:12;
+                const cls = isDead?'m-dead':'m-injured';
+                const icon = L.divIcon({className:'custom-marker',html:`<div class="m-dot ${cls}" style="width:${sz}px;height:${sz}px"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+                const marker = L.marker([lat,lon],{icon,zIndexOffset:isDead?1000:0});
+
+                const hCls = isDead?'dead':'injured';
+                const hIcon = isDead?'fa-skull-crossbones':'fa-user-injured';
+
+                let roadHtml = '';
+                if(road||route_no||km||addr) {
+                    roadHtml = `<div class="popup-section"><div class="ps-title"><i class="fa-solid fa-road"></i> ข้อมูลสถานที่/ถนน</div>
+                        ${road?`<div class="pr"><span class="pl">ถนน:</span><span class="pv road-v">${road}</span></div>`:''}
+                        ${route_no?`<div class="pr"><span class="pl">ทางหลวง:</span><span class="pv" style="font-weight:600">${route_no}</span></div>`:''}
+                        ${km?`<div class="pr"><span class="pl">กม.:</span><span class="pv" style="font-weight:600">${km}</span></div>`:''}
+                        ${addr?`<div class="pr"><span class="pl">ที่อยู่:</span><span class="pv" style="font-size:0.65rem;color:#64748b">${addr}</span></div>`:''}
+                    </div>`;
+                }
+
+                marker.bindPopup(`<div>
+                    <div class="popup-head"><div class="popup-icon ${hCls}"><i class="fa-solid ${hIcon}"></i></div><span class="popup-title ${hCls}">${condition}</span></div>
+                    <div class="pr"><span class="pl">จังหวัด:</span><span class="pv">${province}</span></div>
+                    <div class="pr"><span class="pl">อำเภอ:</span><span class="pv">${district}</span></div>
+                    <div class="pr"><span class="pl">ตำบล:</span><span class="pv">${subdistrict}</span></div>
+                    <div class="pr"><span class="pl">ปฏิบัติการ:</span><span class="pv">${ops}</span></div>
+                    <div class="pr"><span class="pl">พิกัด:</span><span class="pv">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
+                    ${roadHtml}
+                </div>`,{maxWidth:280});
+
+                if(isDead) deadLayer.addLayer(marker); else injuredLayer.addLayer(marker);
+            });
+
+            map.addLayer(injuredLayer);
+            map.addLayer(deadLayer);
+
+            document.getElementById('cnt-inj').textContent = injOps.toLocaleString()+' ปฏิบัติการ';
+            document.getElementById('cnt-dead').textContent = deadOps.toLocaleString()+' ปฏิบัติการ';
+            document.getElementById('cnt-total').textContent = (injOps+deadOps).toLocaleString();
+
+            // Top 10
+            buildTop10(locMap);
+        }
+
+        function buildTop10(locMap) {
+            const sorted = Object.values(locMap).sort((a,b)=>b.ops-a.ops).slice(0,10);
+            const container = document.getElementById('top10List');
+            container.innerHTML = '';
+            sorted.forEach((loc,i) => {
+                const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+                const item = document.createElement('div');
+                item.className = 'top-item';
+                item.innerHTML = `
+                    <div class="top-rank ${rankCls}">${i+1}</div>
+                    <div class="top-name">${loc.subdistrict}<small>${loc.district}, ${loc.province}</small></div>
+                    <div class="top-count">${loc.ops.toLocaleString()}</div>`;
+                item.onclick = () => map.flyTo([loc.lat,loc.lon], 13, {duration:1});
+                container.appendChild(item);
+            });
+        }
+
+        function toggle(type,el) {
+            const on=el.classList.contains('active');
+            if(on){el.classList.remove('active');map.removeLayer(type==='injured'?injuredLayer:deadLayer);}
+            else{el.classList.add('active');map.addLayer(type==='injured'?injuredLayer:deadLayer);}
+        }
+
+        // ===== LONGDO GEOCODING =====
+        async function longdoGeocode(lat,lon) {
+            const url = `https://api.longdo.com/map/services/address?lon=${lon}&lat=${lat}&noelevation=1&key=${LONGDO_KEY}`;
+            const res = await fetch(url);
+            const text = await res.text();
+            if(text.includes('throw')||text.includes('Error')) throw new Error(text.trim());
+            try { return JSON.parse(text); }
+            catch(e) { const m=text.match(/\{[\s\S]*\}/); if(m) return JSON.parse(m[0]); throw new Error('Invalid response'); }
+        }
+
+        function getUniqueCoords() {
+            const coords = {};
+            allData.forEach(row => {
+                const lat=parseFloat(row['latitude']),lon=parseFloat(row['longitude']);
+                if(!lat||!lon||lat===0||lon===0) return;
+                const k=`${lat},${lon}`;
+                if(!coords[k]) coords[k]={lat,lon};
+            });
+            return coords;
+        }
+
+        function updateGeoUI() {
+            const coords = getUniqueCoords();
+            const total = Object.keys(coords).length;
+            const done = Object.keys(coords).filter(k=>geoCache[k]).length;
+            const found = Object.values(geoCache).filter(v=>v.road).length;
+            const pct = total>0?Math.round((done/total)*100):0;
+
+            document.getElementById('geoBar').style.width = pct+'%';
+            document.getElementById('geoPct').textContent = pct+'%';
+            document.getElementById('geoStatus').textContent = done+'/'+total;
+            document.getElementById('geoFound').textContent = 'พบถนน: '+found;
+
+            if(done>=total && total>0) {
+                const btn = document.getElementById('geoBtn');
+                btn.textContent = '✅ เสร็จสิ้น';
+                btn.className = 'geo-btn done';
+                btn.disabled = true;
+            }
+        }
+
+        async function startGeocode() {
+            if(geoRunning) { geoStop=true; return; }
+            geoRunning=true; geoStop=false;
+
+            const btn = document.getElementById('geoBtn');
+            btn.innerHTML = '<i class="fa-solid fa-pause"></i> หยุดชั่วคราว';
+            btn.className = 'geo-btn running';
+
+            const coords = getUniqueCoords();
+            const pending = Object.entries(coords).filter(([k])=>!geoCache[k]);
+            let i=0;
+
+            for(const [key,{lat,lon}] of pending) {
+                if(geoStop) break;
+                i++;
+                try {
+                    const data = await longdoGeocode(lat,lon);
+                    const road = data.road||data.aoi||'';
+                    const addr = [data.road,data.subdistrict,data.district,data.province].filter(Boolean).join(', ');
+                    geoCache[key] = {road,address:addr};
+                } catch(e) {
+                    geoCache[key] = {road:'',address:''};
+                }
+                if(i%10===0){saveCache();updateGeoUI();}
+                await new Promise(r=>setTimeout(r,200));
+            }
+
+            saveCache();
+            updateGeoUI();
+            geoRunning = false;
+
+            if(!geoStop) {
+                btn.innerHTML = '✅ เสร็จสิ้น - กดเพื่อรีเฟรช';
+                btn.className = 'geo-btn done';
+                btn.onclick = () => location.reload();
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-play"></i> ดำเนินการต่อ';
+                btn.className = 'geo-btn';
+                geoStop = false;
+            }
+        }
+
+        // ===== EXCEL EXPORT =====
+        function exportExcel() {
+            const headers = ['จังหวัด','อำเภอ','ตำบล','อาการ','จำนวนปฏิบัติการ','latitude','longitude','ถนน','หมายเลขทางหลวง','กม.','ที่อยู่เต็ม'];
+            const rows = allData.map(r => {
+                const k=`${parseFloat(r['latitude'])},${parseFloat(r['longitude'])}`;
+                const cached = geoCache[k];
+                return {
+                    'จังหวัด':r['จังหวัด']||'','อำเภอ':r['อำเภอ']||'','ตำบล':r['ตำบล']||'',
+                    'อาการ':r['อาการ']||'','จำนวนปฏิบัติการ':r['จำนวนปฏิบัติการ']||'',
+                    'latitude':r['latitude']||'','longitude':r['longitude']||'',
+                    'ถนน': (r['ถนน']||'').trim() || cached?.road || '',
+                    'หมายเลขทางหลวง': r['หมายเลขทางหลวง']||'',
+                    'กม.': r['กม.']||'',
+                    'ที่อยู่เต็ม': cached?.address || r['ที่อยู่เต็ม'] || ''
+                };
+            });
+            const ws = XLSX.utils.json_to_sheet(rows,{header:headers});
+            ws['!cols'] = [{wch:16},{wch:18},{wch:16},{wch:10},{wch:14},{wch:12},{wch:12},{wch:30},{wch:14},{wch:10},{wch:55}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb,ws,'ข้อมูลอุบัติเหตุ');
+            XLSX.writeFile(wb,'accident_data.xlsx');
+        }
+
+        function hideLoading() {
+            const o=document.getElementById('loadingOverlay');
+            o.classList.add('fade-out');
+            setTimeout(()=>o.style.display='none',500);
+        }
+
+        initMap();
+        loadCSV();
+    </script>
+</body>
+</html>
