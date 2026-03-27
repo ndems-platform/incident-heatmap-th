@@ -58,7 +58,11 @@
         .filter-total span{font-weight:700;color:#1e293b;font-size:0.9rem}
 
         /* Top 10 */
-        .top-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:0.72rem;cursor:pointer;transition:background 0.15s;border-radius:4px;padding:4px 4px}
+        .top-header{display:flex;align-items:center;gap:8px;padding:4px 4px;font-size:0.6rem;color:#94a3b8;font-weight:600;border-bottom:2px solid #e2e8f0;margin-bottom:2px}
+        .top-header .th-rank{width:20px;text-align:center;flex-shrink:0}
+        .top-header .th-name{flex:1}
+        .top-header .th-stat{width:38px;text-align:center}
+        .top-item{display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;font-size:0.72rem;cursor:pointer;transition:background 0.15s;border-radius:4px;padding:4px 4px}
         .top-item:hover{background:#f8fafc}
         .top-item:last-child{border-bottom:none}
         .top-rank{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.6rem;color:white;flex-shrink:0}
@@ -67,8 +71,10 @@
         .rank-3{background:#b45309}
         .rank-other{background:#cbd5e1;color:#64748b}
         .top-name{flex:1;color:#334155;font-weight:500;line-height:1.2}
-        .top-name small{display:block;color:#94a3b8;font-weight:400;font-size:0.62rem}
-        .top-count{font-weight:700;color:#dc2626;font-size:0.78rem;white-space:nowrap}
+        .top-stat{width:38px;text-align:center;font-weight:700;font-size:0.7rem}
+        .top-stat.total{color:#1e293b}
+        .top-stat.inj{color:#ef4444}
+        .top-stat.dead{color:#475569}
 
         /* Popup */
         .leaflet-popup-content-wrapper{background:rgba(255,255,255,0.98)!important;color:#334155!important;border-radius:14px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important;border:1px solid #e2e8f0!important}
@@ -228,8 +234,9 @@
                 if(isDead) deadOps+=ops; else injOps+=ops;
 
                 // Aggregate for top 10 by province
-                if(!locMap[province]) locMap[province] = {province,lat,lon,ops:0};
+                if(!locMap[province]) locMap[province] = {province,lat,lon,ops:0,inj:0,dead:0};
                 locMap[province].ops += ops;
+                if(isDead) locMap[province].dead += ops; else locMap[province].inj += ops;
 
                 // Marker
                 const sz = isDead?16:12;
@@ -276,7 +283,13 @@
         function buildTop10(locMap) {
             const sorted = Object.values(locMap).sort((a,b)=>b.ops-a.ops).slice(0,10);
             const container = document.getElementById('top10List');
-            container.innerHTML = '';
+            container.innerHTML = `<div class="top-header">
+                <div class="th-rank">#</div>
+                <div class="th-name">จังหวัด</div>
+                <div class="th-stat">รวม</div>
+                <div class="th-stat">เจ็บ</div>
+                <div class="th-stat">ตาย</div>
+            </div>`;
             sorted.forEach((loc,i) => {
                 const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
                 const item = document.createElement('div');
@@ -284,7 +297,9 @@
                 item.innerHTML = `
                     <div class="top-rank ${rankCls}">${i+1}</div>
                     <div class="top-name">${loc.province}</div>
-                    <div class="top-count">${loc.ops.toLocaleString()}</div>`;
+                    <div class="top-stat total">${loc.ops.toLocaleString()}</div>
+                    <div class="top-stat inj">${loc.inj.toLocaleString()}</div>
+                    <div class="top-stat dead">${loc.dead.toLocaleString()}</div>`;
                 item.onclick = () => map.flyTo([loc.lat,loc.lon], 9, {duration:1});
                 container.appendChild(item);
             });
