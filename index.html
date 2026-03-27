@@ -131,7 +131,7 @@
     <!-- Left panel: Top 10 -->
     <div class="left-panel">
         <div class="card">
-            <div class="card-title"><i class="fa-solid fa-ranking-star"></i> 10 อันดับ ปฏิบัติการสูงสุด</div>
+            <div class="card-title"><i class="fa-solid fa-ranking-star"></i> 10 อันดับจังหวัด ปฏิบัติการสูงสุด</div>
             <div id="top10List"></div>
         </div>
     </div>
@@ -227,10 +227,9 @@
 
                 if(isDead) deadOps+=ops; else injOps+=ops;
 
-                // Aggregate for top 10
-                const locKey = `${province}|${district}|${subdistrict}`;
-                if(!locMap[locKey]) locMap[locKey] = {province,district,subdistrict,lat,lon,ops:0};
-                locMap[locKey].ops += ops;
+                // Aggregate for top 10 by province
+                if(!locMap[province]) locMap[province] = {province,lat,lon,ops:0};
+                locMap[province].ops += ops;
 
                 // Marker
                 const sz = isDead?16:12;
@@ -284,9 +283,9 @@
                 item.className = 'top-item';
                 item.innerHTML = `
                     <div class="top-rank ${rankCls}">${i+1}</div>
-                    <div class="top-name">${loc.subdistrict}<small>${loc.district}, ${loc.province}</small></div>
+                    <div class="top-name">${loc.province}</div>
                     <div class="top-count">${loc.ops.toLocaleString()}</div>`;
-                item.onclick = () => map.flyTo([loc.lat,loc.lon], 13, {duration:1});
+                item.onclick = () => map.flyTo([loc.lat,loc.lon], 9, {duration:1});
                 container.appendChild(item);
             });
         }
