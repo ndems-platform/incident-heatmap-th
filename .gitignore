@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package.json
+package-lock.json
+
+# Cache and temp files
+geocode_cache.json
+*.log
+
+# Processing/utility files (not needed for the map)
+process.html
+export_cache.html
+
+# Backup files
+index-blackup.html
+*-backup*
+*-blackup*
+
+# Original incident data (using accident_data_270369.csv instead)
+incident_data.csv
+
+# OS files
+.DS_Store
+Thumbs.db
