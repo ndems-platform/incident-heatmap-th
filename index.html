@@ -219,7 +219,7 @@
             allData.forEach(row => {
                 const lat = parseFloat(row['latitude']);
                 const lon = parseFloat(row['longitude']);
-                if(!lat||!lon||(lat===0&&lon===0)) return;
+                const hasCoords = lat && lon && !(lat===0 && lon===0);
 
                 const condition = (row['อาการ']||'').trim();
                 const isDead = condition==='เสียชีวิต';
@@ -234,9 +234,12 @@
                 if(isDead) deadOps+=ops; else injOps+=ops;
 
                 // Aggregate for top 10 by province
-                if(!locMap[province]) locMap[province] = {province,lat,lon,ops:0,inj:0,dead:0};
+                if(!locMap[province]) locMap[province] = {province,lat:hasCoords?lat:13.7563,lon:hasCoords?lon:100.5018,ops:0,inj:0,dead:0};
+                if(hasCoords && locMap[province].lat===13.7563) { locMap[province].lat=lat; locMap[province].lon=lon; }
                 locMap[province].ops += ops;
                 if(isDead) locMap[province].dead += ops; else locMap[province].inj += ops;
+
+                if(!hasCoords) return;
 
                 // Marker
                 const sz = isDead?16:12;
@@ -288,7 +291,7 @@
                 <div class="th-name">จังหวัด</div>
                 <div class="th-stat">รวม</div>
                 <div class="th-stat">เจ็บ</div>
-                <div class="th-stat">ตาย</div>
+                <div class="th-stat">เสียชีวิต</div>
             </div>`;
             sorted.forEach((loc,i) => {
                 const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
